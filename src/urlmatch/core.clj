@@ -26,10 +26,13 @@
            (assoc :queryparams all-query))
     ))
 
+(defn find-binds [pattern]
+  (mapcat rest (re-seq #"\?([A-z]+)\/?=?" pattern)))
+
 (defn match-query [pattern url]
   (if (boolean (re-find #"\?" pattern))
     (let [
-           binds (mapcat rest (re-seq #"\?([A-z]+)\/?=?" pattern))
+           binds (find-binds pattern)
            escaped-pattern (str/replace pattern #"\?([A-z]+)\/?" "(.+)/?")
          ]
 
@@ -54,6 +57,7 @@
 
      (let [
              path-match (match-query (:path patterns) (:path url))
+             binds-size (count (concat (find-binds (:path patterns)) (for [xs (:queryparams patterns) :let [x (find-binds xs)]] x)))
              query-match (apply concat
                                 (for [
                                         query (:queryparams patterns)
@@ -62,7 +66,7 @@
                                    queried))
              result (apply concat (vector path-match query-match))
           ]
-       (when (seq? result) (vec (sort-by first result)))
+       (when (and (seq? result) (= binds-size (count result))) (vec (sort-by first result)))
      )))
 )
 

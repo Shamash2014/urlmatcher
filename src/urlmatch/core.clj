@@ -4,13 +4,11 @@
            ))
 
 (defprotocol IRecogniseable
-  (recognize [pattern url])
-  )
+  (recognize [pattern url]))
 
 (defn build-patterns [str-patterns]
   (let [
-         with-regexp (fn [pattern-str] (re-seq #"(.*?)\((.*?)\)" pattern-str))
-
+         with-regexp #(re-seq #"(.*?)\((.*?)\)" %1)
          splitted (->> (str/split str-patterns #";")
                       (map str/trim)
                       (mapcat with-regexp)
@@ -18,13 +16,11 @@
 
          all-query (mapcat rest (filter #(= (first %1) "queryparam") splitted))
 
-
          result (filter #(not= (first %1) "queryparam") splitted)
        ]
       (-> (apply hash-map (flatten result))
            (keywordize-keys)
-           (assoc :queryparams all-query))
-    ))
+           (assoc :queryparams all-query))))
 
 (defn find-binds [pattern]
   (mapcat rest (re-seq #"\?([A-z]+)\/?=?" pattern)))
@@ -42,12 +38,9 @@
                (mapcat rest)
                (map (partial re-find #"([\w-]+)"))
                (mapcat rest)
-               ))
-      )
+               )))
 
-    (= pattern url)
-    )
-  )
+    (= pattern url)))
 
 (defn unite [patterns url]
   (let [
@@ -57,13 +50,18 @@
 
      (let [
              path-match (match-query (:path patterns) (:path url))
-             binds-size (count (concat (find-binds (:path patterns)) (for [xs (:queryparams patterns) :let [x (find-binds xs)]] x)))
+
+             binds-size (count (concat
+                                 (find-binds (:path patterns))
+                                 (for [xs (:queryparams patterns) :let [x (find-binds xs)]] x)))
+
              query-match (apply concat
                                 (for [
                                         query (:queryparams patterns)
                                         :let [queried (match-query query (:query url))]
                                      ]
                                    queried))
+
              result (apply concat (vector path-match query-match))
           ]
        (when (and (seq? result) (= binds-size (count result))) (vec (sort-by first result)))
@@ -79,5 +77,4 @@
                                    path (.getPath uri)
                                    query (.getQuery uri)
                                  ]
-                              (unite pattern-map (zipmap [:host :path :query] [host path query]))))
-  )
+                              (unite pattern-map (zipmap [:host :path :query] [host path query])))))
